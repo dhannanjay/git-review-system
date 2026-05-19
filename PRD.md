@@ -125,5 +125,5 @@ Prefer **behavioral tests** at module boundaries, not Wails/webview integration,
 
 - **Origin requirement:** [requirement.md](requirement.md) called out PR efficiency, remote branches, and workspaces; v1 delivers **local ref + worktree** review; **remote-tracking ref names** without fetch; **PR-style three-dot** diff. PR URL workflow remains a later epic.
 - **v2 priority (agreed):** Optional `--fetch` before diff; then consider PR URL open and syntax highlighting.
-- **Issue tracker:** Implementation slices live in [issues/](issues/README.md) (markdown until GitHub/`gh` is configured).
+- **Issue tracker:** [GitHub Issues](https://github.com/dhannanjay/git-review-system/issues) (#1–#9); local copies in [issues/](issues/README.md).
 - **Modules / tests confirmation:** Suggested modules and test focus are listed above; adjust before implementation if you want fewer integration tests or an earlier `--two-dot` flag.
