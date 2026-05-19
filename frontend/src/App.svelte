@@ -12,14 +12,13 @@
   onMount(async () => {
     try {
       files = await ListChanges()
-      if (files.length > 0) {
-        selectedFile = files[0].path
-        await loadPatch(selectedFile)
-      }
     } catch (e) {
       error = String(e)
-    } finally {
-      filesLoaded = true
+    }
+    filesLoaded = true
+    if (files.length > 0) {
+      selectedFile = files[0].path
+      await loadPatch(selectedFile)
     }
   })
 
