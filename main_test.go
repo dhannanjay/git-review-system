@@ -13,14 +13,20 @@ func TestUsageText(t *testing.T) {
 	if !strings.Contains(text, "--help") {
 		t.Error("usage text should mention --help")
 	}
-	if !strings.Contains(text, "blocks") {
-		t.Error("usage text should mention blocking behavior")
+	if !strings.Contains(text, "--base") {
+		t.Error("usage text should mention --base")
+	}
+	if !strings.Contains(text, "--head") {
+		t.Error("usage text should mention --head")
+	}
+	if !strings.Contains(text, "-C") {
+		t.Error("usage text should mention -C")
 	}
 }
 
-func TestUsageTextIncludesFlagsNote(t *testing.T) {
+func TestUsageTextIncludesBlockingNote(t *testing.T) {
 	text := usageText()
-	if !strings.Contains(text, "--base") || !strings.Contains(text, "--head") {
-		t.Error("usage text should mention forthcoming branch-diff flags")
+	if !strings.Contains(text, "blocks") {
+		t.Error("usage text should mention blocking behavior")
 	}
 }

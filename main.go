@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+
+	"review-diff/session"
 )
 
 //go:embed all:frontend/dist
@@ -17,6 +20,9 @@ var assets embed.FS
 func main() {
 	fs := flag.NewFlagSet("review-diff", flag.ContinueOnError)
 	help := fs.Bool("help", false, "show usage")
+	repo := fs.String("C", "", "path to git repository")
+	base := fs.String("base", "", "base ref (e.g. main, origin/main)")
+	head := fs.String("head", "", "head ref (e.g. feature-branch)")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usageText()) }
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -28,14 +34,32 @@ func main() {
 		os.Exit(0)
 	}
 
-	if fs.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "review-diff: unrecognized argument: %s\n", fs.Arg(0))
-		fs.Usage()
-		os.Exit(2)
+	// If no flags given (no -C, no --base, no --head), show usage
+	// This also handles the case where the binary is run for wails module generation
+	// which provides no arguments - in that case we start the app without a session
+	// so bindings can be registered.
+	hasFlags := *repo != "" || *base != "" || *head != ""
+	if hasFlags {
+		sess, err := session.New(*repo, *base, *head)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "review-diff: %v\n", err)
+			fs.Usage()
+			os.Exit(2)
+		}
+		if err := validateRefs(context.Background(), sess); err != nil {
+			fmt.Fprintf(os.Stderr, "review-diff: %v\n", err)
+			os.Exit(2)
+		}
+		app := NewApp(sess)
+		run(app)
+	} else {
+		// Start GUI without flags (for wails generate module or direct launch)
+		app := NewApp(nil)
+		run(app)
 	}
+}
 
-	app := NewApp()
-
+func run(app *App) {
 	if err := wails.Run(&options.App{
 		Title:  "review-diff",
 		Width:  1024,
@@ -55,14 +79,15 @@ func main() {
 }
 
 func usageText() string {
-	return `Usage: review-diff [--help]
+	return `Usage: review-diff -C <repo> --base <ref> --head <ref>
 
 A native desktop diff viewer for local Git branches.
-
-Opens a GUI window that blocks until closed. Branch-diff flags
-(--base, --head, etc.) will be added in a later release.
+Opens a GUI window that blocks until closed.
 
 Flags:
-  --help  show this message and exit
+  -C <repo>   path to git repository
+  --base <ref> base ref (e.g. main, origin/main)
+  --head <ref> head ref (e.g. feature-branch)
+  --help       show this message and exit
 `
 }
