@@ -36,7 +36,7 @@ func main() {
 
 	app := NewApp()
 
-	err := wails.Run(&options.App{
+	if err := wails.Run(&options.App{
 		Title:  "review-diff",
 		Width:  1024,
 		Height: 768,
@@ -48,9 +48,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
-	})
-
-	if err != nil {
+	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
