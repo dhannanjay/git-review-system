@@ -1,8 +1,15 @@
 package main
 
 import (
+	"context"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
+
+	"review-diff/changelist"
+	"review-diff/gitrunner"
+	"review-diff/patchloader"
 )
 
 func TestUsageText(t *testing.T) {
@@ -28,5 +35,137 @@ func TestUsageTextIncludesBlockingNote(t *testing.T) {
 	text := usageText()
 	if !strings.Contains(text, "blocks") {
 		t.Error("usage text should mention blocking behavior")
+	}
+}
+
+func TestLazyPerFileLoading(t *testing.T) {
+	dir, err := os.MkdirTemp("", "review-diff-lazy-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "T")
+
+	os.WriteFile(dir+"/alpha.txt", []byte("alpha\n"), 0644)
+	os.WriteFile(dir+"/beta.txt", []byte("beta\n"), 0644)
+	os.WriteFile(dir+"/gamma.txt", []byte("gamma\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "init")
+	git("branch", "feature")
+
+	os.WriteFile(dir+"/alpha.txt", []byte("alpha\nmain\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "main-change-alpha")
+
+	git("checkout", "feature")
+	os.WriteFile(dir+"/alpha.txt", []byte("alpha\nfeature\n"), 0644)
+	os.WriteFile(dir+"/beta.txt", []byte("beta\nfeature\n"), 0644)
+	os.WriteFile(dir+"/gamma.txt", []byte("gamma\nfeature\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "feature-changes")
+
+	git("checkout", "main")
+
+	runner := gitrunner.New(dir)
+	ctx := context.Background()
+	base := "main"
+	head := "feature"
+
+	changes, err := changelist.ListChanges(ctx, runner, base, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(changes) < 3 {
+		t.Fatalf("expected at least 3 changed files, got %d", len(changes))
+	}
+
+	found := map[string]bool{}
+	for _, c := range changes {
+		found[c.Path] = true
+	}
+	for _, name := range []string{"alpha.txt", "beta.txt", "gamma.txt"} {
+		if !found[name] {
+			t.Errorf("expected %s in changed files", name)
+		}
+	}
+
+	patch, err := patchloader.LoadPatch(ctx, runner, base, head, "alpha.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(patch.OldPath, "alpha.txt") && !strings.Contains(patch.NewPath, "alpha.txt") {
+		t.Errorf("patch should reference alpha.txt, got old=%q new=%q", patch.OldPath, patch.NewPath)
+	}
+	if len(patch.Hunks) == 0 {
+		t.Error("expected hunks in alpha.txt patch")
+	}
+	for _, h := range patch.Hunks {
+		for _, line := range h.Lines {
+			if strings.Contains(line.Content, "beta") {
+				t.Errorf("alpha.txt patch should not contain beta content: %q", line.Content)
+			}
+			if strings.Contains(line.Content, "gamma") {
+				t.Errorf("alpha.txt patch should not contain gamma content: %q", line.Content)
+			}
+		}
+	}
+
+	patch, err = patchloader.LoadPatch(ctx, runner, base, head, "gamma.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(patch.Hunks) == 0 {
+		t.Error("expected hunks in gamma.txt patch")
+	}
+}
+
+func TestEmptyDiff(t *testing.T) {
+	dir, err := os.MkdirTemp("", "review-diff-empty-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "T")
+	os.WriteFile(dir+"/a.txt", []byte("a\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "init")
+	git("branch", "feature")
+
+	runner := gitrunner.New(dir)
+	ctx := context.Background()
+
+	changes, err := changelist.ListChanges(ctx, runner, "main", "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(changes) != 0 {
+		t.Errorf("expected no changes for identical branches, got %d", len(changes))
 	}
 }

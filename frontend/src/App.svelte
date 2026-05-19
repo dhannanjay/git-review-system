@@ -5,7 +5,8 @@
   let files = []
   let selectedFile = ''
   let patch = null
-  let loading = true
+  let filesLoaded = false
+  let patchLoading = false
   let error = ''
 
   onMount(async () => {
@@ -18,13 +19,13 @@
     } catch (e) {
       error = String(e)
     } finally {
-      loading = false
+      filesLoaded = true
     }
   })
 
   async function loadPatch(path) {
     selectedFile = path
-    loading = true
+    patchLoading = true
     error = ''
     try {
       patch = await LoadPatch(path)
@@ -32,7 +33,7 @@
       error = String(e)
       patch = null
     } finally {
-      loading = false
+      patchLoading = false
     }
   }
 </script>
@@ -40,7 +41,9 @@
 <main>
   <div class="sidebar" id="sidebar">
     <h2>Files</h2>
-    {#if files.length === 0 && !loading}
+    {#if !filesLoaded}
+      <p class="empty">Loading files...</p>
+    {:else if files.length === 0}
       <p class="empty">No changed files</p>
     {:else}
       {#each files as f}
@@ -57,8 +60,8 @@
   </div>
 
   <div class="diff-area" id="diff-area">
-    {#if loading}
-      <p class="status-msg">Loading...</p>
+    {#if patchLoading}
+      <p class="status-msg">Loading diff...</p>
     {:else if error}
       <p class="error-msg">{error}</p>
     {:else if patch}
