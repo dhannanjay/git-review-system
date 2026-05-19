@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "grill-me": {
+      "source": "/home/dhannanjay/Documents/code/dhannanjay/skills",
+      "sourceType": "local",
+      "computedHash": "be505a1b62f901b58f90ad57210caf5551a6f79c74ea7aee6d13d5a3c5cfb5ea"
+    },
+    "to-issues": {
+      "source": "/home/dhannanjay/Documents/code/dhannanjay/skills",
+      "sourceType": "local",
+      "computedHash": "05c6599c21a3c31ff269a2634c8c547d6a51f53e74e3dda2886ac63c4112e3fc"
+    },
+    "to-prd": {
+      "source": "/home/dhannanjay/Documents/code/dhannanjay/skills",
+      "sourceType": "local",
+      "computedHash": "f5544199809552a1c1843502b302fedc9a99f36492c1a2006458a01e7b120d04"
+    }
+  }
+}
