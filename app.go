@@ -37,7 +37,6 @@ func validateRefs(ctx context.Context, sess *session.Session) error {
 	return err
 }
 
-// FileChangeDTO is a JSON-friendly DTO for the frontend.
 type FileChangeDTO struct {
 	Path   string `json:"path"`
 	Status string `json:"status"`
@@ -61,7 +60,6 @@ func (a *App) ListChanges() ([]FileChangeDTO, error) {
 	return dtos, nil
 }
 
-// LineDTO is a JSON-friendly DTO for a single line in the diff.
 type LineDTO struct {
 	Type    int    `json:"type"`    // 0=context, 1=added, 2=removed
 	Content string `json:"content"`
@@ -69,7 +67,6 @@ type LineDTO struct {
 	NewNum  int    `json:"newNum"`
 }
 
-// HunkDTO is a JSON-friendly DTO for a hunk.
 type HunkDTO struct {
 	OldStart int       `json:"oldStart"`
 	OldCount int       `json:"oldCount"`
@@ -79,7 +76,6 @@ type HunkDTO struct {
 	Lines    []LineDTO `json:"lines"`
 }
 
-// PatchDTO is a JSON-friendly DTO for a parsed diff file.
 type PatchDTO struct {
 	OldPath string    `json:"oldPath"`
 	NewPath string    `json:"newPath"`
@@ -102,20 +98,20 @@ func diffFileToDTO(df *diffparser.DiffFile) *PatchDTO {
 		OldPath: df.OldPath,
 		NewPath: df.NewPath,
 	}
-	for _, h := range df.Hunks {
+	for _, hunk := range df.Hunks {
 		hunkDTO := HunkDTO{
-			OldStart: h.OldStart,
-			OldCount: h.OldCount,
-			NewStart: h.NewStart,
-			NewCount: h.NewCount,
-			Header:   h.Header,
+			OldStart: hunk.OldStart,
+			OldCount: hunk.OldCount,
+			NewStart: hunk.NewStart,
+			NewCount: hunk.NewCount,
+			Header:   hunk.Header,
 		}
-		for _, l := range h.Lines {
+		for _, line := range hunk.Lines {
 			hunkDTO.Lines = append(hunkDTO.Lines, LineDTO{
-				Type:    int(l.Type),
-				Content: l.Content,
-				OldNum:  l.OldNum,
-				NewNum:  l.NewNum,
+				Type:    int(line.Type),
+				Content: line.Content,
+				OldNum:  line.OldNum,
+				NewNum:  line.NewNum,
 			})
 		}
 		dto.Hunks = append(dto.Hunks, hunkDTO)

@@ -38,7 +38,6 @@ type Line struct {
 func ParseUnified(input string) (*DiffFile, error) {
 	lines := strings.Split(input, "\n")
 
-	// Remove trailing empty line from split
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
@@ -46,7 +45,6 @@ func ParseUnified(input string) (*DiffFile, error) {
 	df := &DiffFile{}
 
 	i := 0
-	// Skip header lines (anything before the first @@)
 	for i < len(lines) {
 		if strings.HasPrefix(lines[i], "--- ") {
 			df.OldPath = strings.TrimPrefix(lines[i], "--- ")
@@ -80,11 +78,7 @@ func ParseUnified(input string) (*DiffFile, error) {
 
 func parseHunk(lines []string, start int) (Hunk, int, error) {
 	hunkLine := lines[start]
-	// @@ -oldStart,oldCount +newStart,newCount @@ optional header
 	parts := strings.SplitN(hunkLine, "@@", 3)
-	if len(parts) < 3 {
-		// still try to parse
-	}
 	rangePart := strings.TrimSpace(parts[1])
 
 	header := ""
@@ -92,7 +86,6 @@ func parseHunk(lines []string, start int) (Hunk, int, error) {
 		header = strings.TrimSpace(parts[2])
 	}
 
-	// Parse -oldStart,oldCount +newStart,newCount
 	ranges := strings.SplitN(rangePart, " ", 3)
 	var oldRange, newRange string
 	for _, r := range ranges {
@@ -124,19 +117,22 @@ func parseHunk(lines []string, start int) (Hunk, int, error) {
 			break
 		}
 		var l Line
-		if strings.HasPrefix(line, "+") {
+		switch {
+		case strings.HasPrefix(line, "+"):
 			l = Line{Type: LineAdded, Content: line[1:], OldNum: 0, NewNum: newNum}
 			newNum++
-		} else if strings.HasPrefix(line, "-") {
+		case strings.HasPrefix(line, "-"):
 			l = Line{Type: LineRemoved, Content: line[1:], OldNum: oldNum, NewNum: 0}
 			oldNum++
-		} else if strings.HasPrefix(line, " ") {
+		case strings.HasPrefix(line, " "):
 			l = Line{Type: LineContext, Content: line[1:], OldNum: oldNum, NewNum: newNum}
 			oldNum++
 			newNum++
-		} else if strings.HasPrefix(line, "\\") {
-			// No newline at end of file marker - skip or include as context
+		case strings.HasPrefix(line, "\\"):
 			l = Line{Type: LineContext, Content: line, OldNum: 0, NewNum: 0}
+		default:
+			i++
+			continue
 		}
 		h.Lines = append(h.Lines, l)
 		i++
