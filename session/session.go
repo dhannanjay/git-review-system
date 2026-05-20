@@ -51,68 +51,70 @@ func (s *Session) ResolveWorktreeRefs(ctx context.Context) error {
 		return nil
 	}
 
-	runner := gitrunner.New(s.Repo)
-	mainCommonOut, err := runner.Run(ctx, "rev-parse", "--git-common-dir")
-	if err != nil {
-		return fmt.Errorf("resolve common dir for %s: %w", s.Repo, err)
-	}
-	mainCommon := strings.TrimSpace(mainCommonOut)
-	mainCommonAbs, err := resolveCommonDir(s.Repo, mainCommon)
+	mainCommonAbs, err := s.resolveMainRepoCommonDir(ctx)
 	if err != nil {
 		return err
 	}
 
-	checkLinked := func(wtPath string) error {
-		wtRunner := gitrunner.New(wtPath)
-		wtCommonOut, err := wtRunner.Run(ctx, "rev-parse", "--git-common-dir")
-		if err != nil {
-			return fmt.Errorf("worktree %q is not a git repository", wtPath)
-		}
-		wtCommon := strings.TrimSpace(wtCommonOut)
-		wtCommonAbs, err := resolveCommonDir(wtPath, wtCommon)
-		if err != nil {
-			return err
-		}
-		if mainCommonAbs != wtCommonAbs {
-			return fmt.Errorf("worktree %q is not linked to repository %s", wtPath, s.Repo)
-		}
-		return nil
-	}
-
-	resolveHEAD := func(wtPath string) (string, error) {
-		wtRunner := gitrunner.New(wtPath)
-		out, err := wtRunner.Run(ctx, "rev-parse", "HEAD")
-		if err != nil {
-			return "", fmt.Errorf("resolve HEAD in %q: %w", wtPath, err)
-		}
-		return strings.TrimSpace(out), nil
-	}
-
 	if s.BaseWorktree != "" {
-		if err := checkLinked(s.BaseWorktree); err != nil {
+		if err := s.checkLinked(ctx, mainCommonAbs, s.BaseWorktree); err != nil {
 			return err
 		}
 		if s.Base == "" {
-			headRef, err := resolveHEAD(s.BaseWorktree)
+			commit, err := s.resolveHEAD(ctx, s.BaseWorktree)
 			if err != nil {
 				return err
 			}
-			s.Base = headRef
+			s.Base = commit
 		}
 	}
 
 	if s.HeadWorktree != "" {
-		if err := checkLinked(s.HeadWorktree); err != nil {
+		if err := s.checkLinked(ctx, mainCommonAbs, s.HeadWorktree); err != nil {
 			return err
 		}
 		if s.Head == "" {
-			headRef, err := resolveHEAD(s.HeadWorktree)
+			commit, err := s.resolveHEAD(ctx, s.HeadWorktree)
 			if err != nil {
 				return err
 			}
-			s.Head = headRef
+			s.Head = commit
 		}
 	}
 
 	return nil
+}
+
+func (s *Session) resolveMainRepoCommonDir(ctx context.Context) (string, error) {
+	runner := gitrunner.New(s.Repo)
+	out, err := runner.Run(ctx, "rev-parse", "--git-common-dir")
+	if err != nil {
+		return "", fmt.Errorf("resolve common dir for %s: %w", s.Repo, err)
+	}
+	return resolveCommonDir(s.Repo, strings.TrimSpace(out))
+}
+
+func (s *Session) checkLinked(ctx context.Context, mainCommonAbs, wtPath string) error {
+	runner := gitrunner.New(wtPath)
+	out, err := runner.Run(ctx, "rev-parse", "--git-common-dir")
+	if err != nil {
+		return fmt.Errorf("worktree %q is not a git repository", wtPath)
+	}
+	wtCommonAbs, err := resolveCommonDir(wtPath, strings.TrimSpace(out))
+	if err != nil {
+		return err
+	}
+	if mainCommonAbs != wtCommonAbs {
+		return fmt.Errorf("worktree %q is not linked to repository %s", wtPath, s.Repo)
+	}
+	return nil
+}
+
+func (s *Session) resolveHEAD(ctx context.Context, wtPath string) (string, error) {
+	runner := gitrunner.New(wtPath)
+	out, err := runner.Run(ctx, "rev-parse", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("resolve HEAD in %q: %w", wtPath, err)
+	}
+	return strings.TrimSpace(out), nil
 }
