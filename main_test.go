@@ -36,6 +36,9 @@ func TestUsageText(t *testing.T) {
 	if !strings.Contains(text, "--head-worktree") {
 		t.Error("usage text should mention --head-worktree")
 	}
+	if !strings.Contains(text, "--fetch") {
+		t.Error("usage text should mention --fetch")
+	}
 }
 
 func TestUsageTextIncludesBlockingNote(t *testing.T) {
@@ -561,5 +564,95 @@ func TestUnlinkedWorktreePaths(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not linked") {
 		t.Errorf("expected error about not linked, got: %v", err)
+	}
+}
+
+func TestFetchIntegration(t *testing.T) {
+	// Create a local bare remote
+	bareDir := t.TempDir()
+	cmd := exec.Command("git", "init", "--bare", bareDir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare: %s", out)
+	}
+
+	// Working copy A: push main + feature branches to bare remote
+	dirA := t.TempDir()
+	gitA := func(args ...string) {
+		t.Helper()
+		c := exec.Command("git", args...)
+		c.Dir = dirA
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	gitA("init", "-b", "main")
+	gitA("config", "user.email", "t@t.com")
+	gitA("config", "user.name", "T")
+	gitA("remote", "add", "origin", bareDir)
+
+	os.WriteFile(dirA+"/init.txt", []byte("init\n"), 0644)
+	gitA("add", ".")
+	gitA("commit", "-m", "init")
+	gitA("push", "-u", "origin", "main")
+
+	gitA("checkout", "-b", "feature")
+	os.WriteFile(dirA+"/feature.txt", []byte("feature change\n"), 0644)
+	gitA("add", ".")
+	gitA("commit", "-m", "feature-commit")
+	gitA("push", "-u", "origin", "feature")
+
+	gitA("checkout", "main")
+
+	// Working copy B: clone but only fetch main ref, so origin/feature is missing
+	dirB := t.TempDir()
+	gitB := func(args ...string) {
+		t.Helper()
+		c := exec.Command("git", args...)
+		c.Dir = dirB
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	gitB("init", "-b", "main")
+	gitB("config", "user.email", "t@t.com")
+	gitB("config", "user.name", "T")
+	gitB("remote", "add", "origin", bareDir)
+	gitB("fetch", "origin", "main")
+
+	// Verify feature branch ref does not exist in B yet
+	checkRef := exec.Command("git", "show-ref", "--verify", "refs/remotes/origin/feature")
+	checkRef.Dir = dirB
+	if err := checkRef.Run(); err == nil {
+		t.Fatal("expected origin/feature to not exist before fetch")
+	}
+
+	ctx := context.Background()
+	runner := gitrunner.New(dirB)
+
+	// ListChanges against the missing ref should fail
+	_, err := changelist.ListChanges(ctx, runner, "origin/main", "origin/feature")
+	if err == nil {
+		t.Fatal("expected error listing changes with non-existent ref origin/feature")
+	}
+
+	// Run fetch --all to bring in the missing ref
+	if _, err := runner.Run(ctx, "fetch", "--all"); err != nil {
+		t.Fatalf("fetch failed: %v", err)
+	}
+
+	// Now origin/feature should exist and ListChanges should succeed
+	changes, err := changelist.ListChanges(ctx, runner, "origin/main", "origin/feature")
+	if err != nil {
+		t.Fatalf("ListChanges after fetch: %v", err)
+	}
+	var found bool
+	for _, c := range changes {
+		if c.NewPath == "feature.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected feature.txt in changes after fetch, got %v", changes)
 	}
 }

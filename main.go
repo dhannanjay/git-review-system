@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
+	"review-diff/gitrunner"
 	"review-diff/session"
 )
 
@@ -25,6 +26,7 @@ func main() {
 	head := fs.String("head", "", "head ref (e.g. feature-branch)")
 	baseWorktree := fs.String("base-worktree", "", "base worktree path (resolves to its HEAD unless --base overrides)")
 	headWorktree := fs.String("head-worktree", "", "head worktree path (resolves to its HEAD unless --head overrides)")
+	fetch := fs.Bool("fetch", false, "fetch from all remotes before diffing")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usageText()) }
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -51,6 +53,13 @@ func main() {
 		if err := sess.ResolveWorktreeRefs(context.Background()); err != nil {
 			fmt.Fprintf(os.Stderr, "review-diff: %v\n", err)
 			os.Exit(2)
+		}
+		if *fetch {
+			runner := gitrunner.New(*repo)
+			if _, err := runner.Run(context.Background(), "fetch", "--all"); err != nil {
+				fmt.Fprintf(os.Stderr, "review-diff: fetch failed: %v\n", err)
+				os.Exit(2)
+			}
 		}
 		if err := validateRefs(context.Background(), sess); err != nil {
 			fmt.Fprintf(os.Stderr, "review-diff: %v\n", err)
@@ -97,6 +106,7 @@ Flags:
   --head <ref>          head ref (e.g. feature-branch)
   --base-worktree <path> base worktree path (resolves to its HEAD unless --base overrides)
   --head-worktree <path> head worktree path (resolves to its HEAD unless --head overrides)
+  --fetch               fetch from all remotes before diffing (opt-in network)
   --help                show this message and exit
 
 Keyboard:
