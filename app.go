@@ -38,8 +38,9 @@ func validateRefs(ctx context.Context, sess *session.Session) error {
 }
 
 type FileChangeDTO struct {
-	Path   string `json:"path"`
-	Status string `json:"status"`
+	OldPath string `json:"oldPath"`
+	Path    string `json:"path"`
+	Status  string `json:"status"`
 }
 
 func (a *App) ListChanges() ([]FileChangeDTO, error) {
@@ -52,7 +53,7 @@ func (a *App) ListChanges() ([]FileChangeDTO, error) {
 	}
 	dtos := make([]FileChangeDTO, len(changes))
 	for i, c := range changes {
-		dtos[i] = FileChangeDTO{Path: c.Path, Status: c.Status}
+		dtos[i] = FileChangeDTO{OldPath: c.OldPath, Path: c.NewPath, Status: c.Status}
 	}
 	sort.Slice(dtos, func(i, j int) bool {
 		return dtos[i].Path < dtos[j].Path
@@ -77,9 +78,11 @@ type HunkDTO struct {
 }
 
 type PatchDTO struct {
-	OldPath string    `json:"oldPath"`
-	NewPath string    `json:"newPath"`
-	Hunks   []HunkDTO `json:"hunks"`
+	OldPath     string    `json:"oldPath"`
+	NewPath     string    `json:"newPath"`
+	Hunks       []HunkDTO `json:"hunks"`
+	IsBinary    bool      `json:"isBinary"`
+	IsSubmodule bool      `json:"isSubmodule"`
 }
 
 func (a *App) LoadPatch(filePath string) (*PatchDTO, error) {
@@ -95,8 +98,10 @@ func (a *App) LoadPatch(filePath string) (*PatchDTO, error) {
 
 func diffFileToDTO(df *diffparser.DiffFile) *PatchDTO {
 	dto := &PatchDTO{
-		OldPath: df.OldPath,
-		NewPath: df.NewPath,
+		OldPath:     df.OldPath,
+		NewPath:     df.NewPath,
+		IsBinary:    df.IsBinary,
+		IsSubmodule: df.IsSubmodule,
 	}
 	for _, hunk := range df.Hunks {
 		hunkDTO := HunkDTO{

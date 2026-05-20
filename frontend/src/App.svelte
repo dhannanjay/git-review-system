@@ -105,7 +105,13 @@
           on:click={() => loadPatch(f.path)}
         >
           <span class="status status-{f.status.toLowerCase()}">{f.status}</span>
-          <span class="path">{f.path}</span>
+          <span class="path">
+            {#if f.oldPath}
+              <span class="old-path">{f.oldPath}</span>
+              <span class="arrow">→</span>
+            {/if}
+            {f.path}
+          </span>
         </button>
       {/each}
     {/if}
@@ -117,34 +123,42 @@
     {:else if error}
       <p class="error-msg">{error}</p>
     {:else if patch}
-      {#each patch.hunks as hunk, i}
-        <div class="hunk-container" class:hunk-active={i === currentHunkIndex}>
-          <div class="hunk-header">
-            {hunk.header}
-            {#if patch.hunks.length > 1}
-              <span class="hunk-index">({i + 1}/{patch.hunks.length})</span>
-            {/if}
-          </div>
-          <div class="diff-table">
-            <div class="diff-row header-row">
-              <div class="line-num-left">Old</div>
-              <div class="line-num-right">New</div>
-              <div class="line-content">Content</div>
+      {#if patch.isBinary}
+        <div class="stub-msg">Binary file changed</div>
+      {:else if patch.isSubmodule}
+        <div class="stub-msg">Submodule changed</div>
+      {:else if patch.hunks.length > 0}
+        {#each patch.hunks as hunk, i}
+          <div class="hunk-container" class:hunk-active={i === currentHunkIndex}>
+            <div class="hunk-header">
+              {hunk.header}
+              {#if patch.hunks.length > 1}
+                <span class="hunk-index">({i + 1}/{patch.hunks.length})</span>
+              {/if}
             </div>
-            {#each hunk.lines as line}
-              <div
-                class="diff-row"
-                class:added={line.type === 1}
-                class:removed={line.type === 2}
-              >
-                <div class="line-num-left">{line.oldNum || ''}</div>
-                <div class="line-num-right">{line.newNum || ''}</div>
-                <div class="line-content">{line.content}</div>
+            <div class="diff-table">
+              <div class="diff-row header-row">
+                <div class="line-num-left">Old</div>
+                <div class="line-num-right">New</div>
+                <div class="line-content">Content</div>
               </div>
-            {/each}
+              {#each hunk.lines as line}
+                <div
+                  class="diff-row"
+                  class:added={line.type === 1}
+                  class:removed={line.type === 2}
+                >
+                  <div class="line-num-left">{line.oldNum || ''}</div>
+                  <div class="line-num-right">{line.newNum || ''}</div>
+                  <div class="line-content">{line.content}</div>
+                </div>
+              {/each}
+            </div>
           </div>
-        </div>
-      {/each}
+        {/each}
+      {:else}
+        <p class="status-msg">No textual diff available</p>
+      {/if}
     {:else}
       <p class="status-msg">Select a file to view its diff</p>
     {/if}
@@ -217,11 +231,28 @@
     font-weight: bold;
     padding: 1px 4px;
     border-radius: 3px;
+    flex-shrink: 0;
   }
 
   .status-m { background: #4ec9b0; color: #000; }
   .status-a { background: #6a9955; color: #fff; }
   .status-d { background: #f14c4c; color: #fff; }
+  .status-r { background: #dcdcaa; color: #000; }
+
+  .path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .old-path {
+    opacity: 0.7;
+  }
+
+  .arrow {
+    margin: 0 2px;
+    opacity: 0.7;
+  }
 
   .diff-area {
     flex: 1;
@@ -305,6 +336,14 @@
 
   .diff-row.removed .line-num-left {
     color: #f14c4c;
+  }
+
+  .stub-msg {
+    color: #dcdcaa;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    padding: 40px;
   }
 
   .status-msg {
