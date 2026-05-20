@@ -38,6 +38,28 @@ func TestUsageTextIncludesBlockingNote(t *testing.T) {
 	}
 }
 
+func TestUsageTextIncludesKeyboard(t *testing.T) {
+	text := usageText()
+	if !strings.Contains(text, "Keyboard") {
+		t.Error("usage text should include keyboard section")
+	}
+	if !strings.Contains(text, "next file") {
+		t.Error("usage text should document next file keybinding")
+	}
+	if !strings.Contains(text, "previous file") {
+		t.Error("usage text should document previous file keybinding")
+	}
+	if !strings.Contains(text, "next hunk") {
+		t.Error("usage text should document next hunk keybinding")
+	}
+	if !strings.Contains(text, "previous hunk") {
+		t.Error("usage text should document previous hunk keybinding")
+	}
+	if !strings.Contains(text, "quit") {
+		t.Error("usage text should document quit keybinding")
+	}
+}
+
 func TestLazyPerFileLoading(t *testing.T) {
 	dir, err := os.MkdirTemp("", "review-diff-lazy-*")
 	if err != nil {

@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte'
   import { ListChanges, LoadPatch } from '../wailsjs/go/main/App.js'
+  import { Quit } from '../wailsjs/runtime/runtime.js'
 
   let files = []
   let selectedFile = ''
@@ -8,6 +9,8 @@
   let filesLoaded = false
   let patchLoading = false
   let error = ''
+  let currentHunkIndex = 0
+  let diffAreaEl
 
   onMount(async () => {
     try {
@@ -26,6 +29,7 @@
     selectedFile = path
     patchLoading = true
     error = ''
+    currentHunkIndex = 0
     try {
       patch = await LoadPatch(path)
     } catch (e) {
@@ -35,7 +39,75 @@
       patchLoading = false
     }
   }
+
+  function selectFile(index) {
+    if (index >= 0 && index < files.length) {
+      loadPatch(files[index].path)
+    }
+  }
+
+  function currentFileIndex() {
+    return files.findIndex(f => f.path === selectedFile)
+  }
+
+  function focusHunk(index) {
+    if (!patch || index < 0 || index >= patch.hunks.length) return
+    currentHunkIndex = index
+    const hunkEls = diffAreaEl.querySelectorAll('.hunk-container')
+    if (hunkEls && hunkEls[index]) {
+      hunkEls[index].scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  function handleKeydown(e) {
+    const tag = e.target.tagName.toLowerCase()
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return
+
+    const key = e.key
+
+    if (key === 'q') {
+      Quit()
+      e.preventDefault()
+      return
+    }
+
+    if (key === 'j' || key === ']') {
+      const idx = currentFileIndex()
+      if (idx < files.length - 1) {
+        selectFile(idx + 1)
+      }
+      e.preventDefault()
+      return
+    }
+
+    if (key === 'k' || key === '[') {
+      const idx = currentFileIndex()
+      if (idx > 0) {
+        selectFile(idx - 1)
+      }
+      e.preventDefault()
+      return
+    }
+
+    if (key === 'n') {
+      if (patch && currentHunkIndex < patch.hunks.length - 1) {
+        focusHunk(currentHunkIndex + 1)
+      }
+      e.preventDefault()
+      return
+    }
+
+    if (key === 'p') {
+      if (patch && currentHunkIndex > 0) {
+        focusHunk(currentHunkIndex - 1)
+      }
+      e.preventDefault()
+      return
+    }
+  }
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <main>
   <div class="sidebar" id="sidebar">
@@ -58,31 +130,38 @@
     {/if}
   </div>
 
-  <div class="diff-area" id="diff-area">
+  <div class="diff-area" id="diff-area" bind:this={diffAreaEl}>
     {#if patchLoading}
       <p class="status-msg">Loading diff...</p>
     {:else if error}
       <p class="error-msg">{error}</p>
     {:else if patch}
-      {#each patch.hunks as hunk}
-        <div class="hunk-header">{hunk.header}</div>
-        <div class="diff-table">
-          <div class="diff-row header-row">
-            <div class="line-num-left">Old</div>
-            <div class="line-num-right">New</div>
-            <div class="line-content">Content</div>
+      {#each patch.hunks as hunk, i}
+        <div class="hunk-container" class:hunk-active={i === currentHunkIndex}>
+          <div class="hunk-header">
+            {hunk.header}
+            {#if patch.hunks.length > 1}
+              <span class="hunk-index">({i + 1}/{patch.hunks.length})</span>
+            {/if}
           </div>
-          {#each hunk.lines as line}
-            <div
-              class="diff-row"
-              class:added={line.type === 1}
-              class:removed={line.type === 2}
-            >
-              <div class="line-num-left">{line.oldNum || ''}</div>
-              <div class="line-num-right">{line.newNum || ''}</div>
-              <div class="line-content">{line.content}</div>
+          <div class="diff-table">
+            <div class="diff-row header-row">
+              <div class="line-num-left">Old</div>
+              <div class="line-num-right">New</div>
+              <div class="line-content">Content</div>
             </div>
-          {/each}
+            {#each hunk.lines as line}
+              <div
+                class="diff-row"
+                class:added={line.type === 1}
+                class:removed={line.type === 2}
+              >
+                <div class="line-num-left">{line.oldNum || ''}</div>
+                <div class="line-num-right">{line.newNum || ''}</div>
+                <div class="line-content">{line.content}</div>
+              </div>
+            {/each}
+          </div>
         </div>
       {/each}
     {:else}
@@ -176,6 +255,24 @@
     background: #1e1e1e;
     border-bottom: 1px solid #3c3c3c;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hunk-active .hunk-header {
+    background: #2a2d50;
+    border-color: #569cd6;
+  }
+
+  .hunk-index {
+    font-size: 10px;
+    color: #888;
+    font-weight: normal;
+  }
+
+  .hunk-container {
+    scroll-margin-top: 8px;
   }
 
   .diff-table {

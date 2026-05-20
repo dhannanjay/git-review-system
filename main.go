@@ -89,5 +89,12 @@ Flags:
   --base <ref> base ref (e.g. main, origin/main)
   --head <ref> head ref (e.g. feature-branch)
   --help       show this message and exit
+
+Keyboard:
+  j / ]      next file
+  k / [      previous file
+  n          next hunk
+  p          previous hunk
+  q          quit
 `
 }

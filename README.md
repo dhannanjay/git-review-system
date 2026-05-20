@@ -27,6 +27,16 @@ review-diff --help
 
 Branch-diff flags (`--base`, `--head`, etc.) are coming in a later release.
 
+## Keyboard
+
+| Key | Action |
+|-----|--------|
+| `j` / `]` | Next file |
+| `k` / `[` | Previous file |
+| `n` | Next hunk |
+| `p` | Previous hunk |
+| `q` | Quit |
+
 ## Requirements
 
 - Go 1.23+
