@@ -12,6 +12,7 @@ var allowedGitSubcommands = map[string]bool{
 	"log":        true,
 	"status":     true,
 	"merge-base": true,
+	"rev-parse":  true,
 }
 
 type Runner struct {

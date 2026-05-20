@@ -23,6 +23,8 @@ func main() {
 	repo := fs.String("C", "", "path to git repository")
 	base := fs.String("base", "", "base ref (e.g. main, origin/main)")
 	head := fs.String("head", "", "head ref (e.g. feature-branch)")
+	baseWorktree := fs.String("base-worktree", "", "base worktree path (resolves to its HEAD unless --base overrides)")
+	headWorktree := fs.String("head-worktree", "", "head worktree path (resolves to its HEAD unless --head overrides)")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usageText()) }
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -34,16 +36,20 @@ func main() {
 		os.Exit(0)
 	}
 
-	// If no flags given (no -C, no --base, no --head), show usage
+	// If no flags given (no -C, no --base, no --head, no worktree flags), show usage
 	// This also handles the case where the binary is run for wails module generation
 	// which provides no arguments - in that case we start the app without a session
 	// so bindings can be registered.
-	hasFlags := *repo != "" || *base != "" || *head != ""
+	hasFlags := *repo != "" || *base != "" || *head != "" || *baseWorktree != "" || *headWorktree != ""
 	if hasFlags {
-		sess, err := session.New(*repo, *base, *head)
+		sess, err := session.New(*repo, *base, *head, *baseWorktree, *headWorktree)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "review-diff: %v\n", err)
 			fs.Usage()
+			os.Exit(2)
+		}
+		if err := sess.ResolveWorktreeRefs(context.Background()); err != nil {
+			fmt.Fprintf(os.Stderr, "review-diff: %v\n", err)
 			os.Exit(2)
 		}
 		if err := validateRefs(context.Background(), sess); err != nil {
@@ -80,15 +86,18 @@ func run(app *App) {
 
 func usageText() string {
 	return `Usage: review-diff -C <repo> --base <ref> --head <ref>
+       review-diff -C <repo> --base-worktree <path> --head-worktree <path> [--base <ref>] [--head <ref>]
 
 A native desktop diff viewer for local Git branches.
 Opens a GUI window that blocks until closed.
 
 Flags:
-  -C <repo>   path to git repository
-  --base <ref> base ref (e.g. main, origin/main)
-  --head <ref> head ref (e.g. feature-branch)
-  --help       show this message and exit
+  -C <repo>             path to git repository
+  --base <ref>          base ref (e.g. main, origin/main)
+  --head <ref>          head ref (e.g. feature-branch)
+  --base-worktree <path> base worktree path (resolves to its HEAD unless --base overrides)
+  --head-worktree <path> head worktree path (resolves to its HEAD unless --head overrides)
+  --help                show this message and exit
 
 Keyboard:
   j / ]      next file

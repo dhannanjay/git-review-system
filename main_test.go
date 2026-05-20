@@ -10,6 +10,7 @@ import (
 	"review-diff/changelist"
 	"review-diff/gitrunner"
 	"review-diff/patchloader"
+	"review-diff/session"
 )
 
 func TestUsageText(t *testing.T) {
@@ -28,6 +29,12 @@ func TestUsageText(t *testing.T) {
 	}
 	if !strings.Contains(text, "-C") {
 		t.Error("usage text should mention -C")
+	}
+	if !strings.Contains(text, "--base-worktree") {
+		t.Error("usage text should mention --base-worktree")
+	}
+	if !strings.Contains(text, "--head-worktree") {
+		t.Error("usage text should mention --head-worktree")
 	}
 }
 
@@ -371,5 +378,188 @@ func TestBinaryDiff(t *testing.T) {
 	}
 	if !patch.IsBinary {
 		t.Error("expected IsBinary true for binary file")
+	}
+}
+
+func TestLinkedWorktreeDiff(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "T")
+
+	os.WriteFile(dir+"/shared.txt", []byte("shared\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "init")
+	git("branch", "feature")
+
+	featureDir := t.TempDir()
+	git("worktree", "add", featureDir, "feature")
+
+	git2 := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = featureDir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	os.WriteFile(featureDir+"/feature-only.txt", []byte("feature change\n"), 0644)
+	git2("add", ".")
+	git2("commit", "-m", "feature-change")
+
+	ctx := context.Background()
+	sess, err := session.New(dir, "", "", dir, featureDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.ResolveWorktreeRefs(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if sess.Base == "" {
+		t.Fatal("expected resolved base ref")
+	}
+	if sess.Head == "" {
+		t.Fatal("expected resolved head ref")
+	}
+
+	runner := gitrunner.New(dir)
+	changes, err := changelist.ListChanges(ctx, runner, sess.Base, sess.Head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, c := range changes {
+		if c.NewPath == "feature-only.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected feature-only.txt in changes, got %v", changes)
+	}
+
+	patch, err := patchloader.LoadPatch(ctx, runner, sess.Base, sess.Head, "feature-only.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(patch.Hunks) == 0 {
+		t.Error("expected hunks for feature-only.txt")
+	}
+}
+
+func TestLinkedWorktreeDiffWithRefOverride(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "T")
+
+	os.WriteFile(dir+"/shared.txt", []byte("shared\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "init")
+	git("branch", "feature")
+
+	featureDir := t.TempDir()
+	git("worktree", "add", featureDir, "feature")
+
+	git2 := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = featureDir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	os.WriteFile(featureDir+"/branch-file.txt", []byte("feature change\n"), 0644)
+	git2("add", ".")
+	git2("commit", "-m", "feature-change")
+
+	ctx := context.Background()
+	sess, err := session.New(dir, "main", "feature", dir, featureDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.ResolveWorktreeRefs(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if sess.Base != "main" {
+		t.Errorf("base should remain 'main', got %q", sess.Base)
+	}
+	if sess.Head != "feature" {
+		t.Errorf("head should remain 'feature', got %q", sess.Head)
+	}
+
+	runner := gitrunner.New(dir)
+	changes, err := changelist.ListChanges(ctx, runner, sess.Base, sess.Head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, c := range changes {
+		if c.NewPath == "branch-file.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected branch-file.txt in changes, got %v", changes)
+	}
+}
+
+func TestUnlinkedWorktreePaths(t *testing.T) {
+	repo1 := t.TempDir()
+	repo2 := t.TempDir()
+
+	for _, d := range []string{repo1, repo2} {
+		cmd := exec.Command("git", "init", "-b", "main")
+		cmd.Dir = d
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git init in %s: %s", d, out)
+		}
+		cmd = exec.Command("git", "config", "user.email", "t@t.com")
+		cmd.Dir = d
+		cmd.Run()
+		cmd = exec.Command("git", "config", "user.name", "T")
+		cmd.Dir = d
+		cmd.Run()
+		os.WriteFile(d+"/init.txt", []byte("x\n"), 0644)
+		cmd = exec.Command("git", "add", ".")
+		cmd.Dir = d
+		cmd.Run()
+		cmd = exec.Command("git", "commit", "-m", "init")
+		cmd.Dir = d
+		cmd.Run()
+	}
+
+	ctx := context.Background()
+	sess, err := session.New(repo1, "", "", repo1, repo2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sess.ResolveWorktreeRefs(ctx)
+	if err == nil {
+		t.Fatal("expected error for unlinked worktree paths")
+	}
+	if !strings.Contains(err.Error(), "not linked") {
+		t.Errorf("expected error about not linked, got: %v", err)
 	}
 }
