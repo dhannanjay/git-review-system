@@ -34,7 +34,7 @@ npm --prefix frontend run build
 
 # Build Go binary via Wails
 echo "==> Running wails build…"
-wails build -clean
+wails build -clean -tags webkit2_41
 
 case "$(uname -s)" in
   Darwin)
