@@ -64,38 +64,38 @@
     const tagName = e.target.tagName.toLowerCase()
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return
 
-    switch (e.key) {
-      case '?':
-        showHelp = !showHelp
+    if (e.key === '?') {
+      showHelp = !showHelp
+      e.preventDefault()
+      return
+    }
+
+    if (e.key === 'Escape') {
+      if (showHelp) {
+        showHelp = false
         e.preventDefault()
-        return
-      case 'Escape':
-        if (showHelp) {
-          showHelp = false
-          e.preventDefault()
-          return
-        }
-        return
+      }
+      return
+    }
+
+    if (showHelp) return
+
+    switch (e.key) {
       case 'q':
-        if (showHelp) return
         Quit()
         break
       case 'j':
       case ']':
-        if (showHelp) return
         selectFile(currentFileIndex() + 1)
         break
       case 'k':
       case '[':
-        if (showHelp) return
         selectFile(currentFileIndex() - 1)
         break
       case 'n':
-        if (showHelp) return
         focusHunk(currentHunkIndex + 1)
         break
       case 'p':
-        if (showHelp) return
         focusHunk(currentHunkIndex - 1)
         break
       default:

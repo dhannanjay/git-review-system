@@ -1,7 +1,6 @@
 :root {
   --bg-primary: #1e1e1e;
   --bg-secondary: #252526;
-  --bg-tertiary: #2a2d2e;
   --bg-hover: #2a2d2e;
   --bg-active: #37373d;
   --bg-hunk-active: #2a2d50;
@@ -35,7 +34,6 @@
   :root {
     --bg-primary: #ffffff;
     --bg-secondary: #f3f3f3;
-    --bg-tertiary: #e8e8e8;
     --bg-hover: #e8e8e8;
     --bg-active: #d0d0d0;
     --bg-hunk-active: #dce3f8;
@@ -50,14 +48,6 @@
     --text-added: #116329;
     --text-removed: #cf222e;
     --text-stub: #7a6f00;
-    --status-m-bg: #4ec9b0;
-    --status-m-text: #000;
-    --status-a-bg: #6a9955;
-    --status-a-text: #fff;
-    --status-d-bg: #f14c4c;
-    --status-d-text: #fff;
-    --status-r-bg: #dcdcaa;
-    --status-r-text: #000;
     --overlay-bg: rgba(0, 0, 0, 0.4);
     --overlay-content-bg: #ffffff;
     --overlay-border: #d0d0d0;
