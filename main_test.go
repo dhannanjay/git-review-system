@@ -116,7 +116,7 @@ func TestLazyPerFileLoading(t *testing.T) {
 
 	found := map[string]bool{}
 	for _, c := range changes {
-		found[c.Path] = true
+		found[c.NewPath] = true
 	}
 	for _, name := range []string{"alpha.txt", "beta.txt", "gamma.txt"} {
 		if !found[name] {
@@ -189,5 +189,187 @@ func TestEmptyDiff(t *testing.T) {
 
 	if len(changes) != 0 {
 		t.Errorf("expected no changes for identical branches, got %d", len(changes))
+	}
+}
+
+func TestRenameDiff(t *testing.T) {
+	dir, err := os.MkdirTemp("", "review-diff-rename-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "T")
+	os.WriteFile(dir+"/old-name.txt", []byte("content\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "init")
+	git("branch", "feature")
+
+	git("checkout", "feature")
+	git("mv", "old-name.txt", "new-name.txt")
+	git("commit", "-m", "rename-file")
+
+	git("checkout", "main")
+
+	runner := gitrunner.New(dir)
+	ctx := context.Background()
+
+	changes, err := changelist.ListChanges(ctx, runner, "main", "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var renameFound bool
+	for _, c := range changes {
+		if c.Status == "R" {
+			renameFound = true
+			if c.OldPath != "old-name.txt" {
+				t.Errorf("rename old path: got %q, want %q", c.OldPath, "old-name.txt")
+			}
+			if c.NewPath != "new-name.txt" {
+				t.Errorf("rename new path: got %q, want %q", c.NewPath, "new-name.txt")
+			}
+		}
+	}
+	if !renameFound {
+		t.Fatal("expected rename in changes")
+	}
+
+	// Load patch via new name
+	patch, err := patchloader.LoadPatch(ctx, runner, "main", "feature", "new-name.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(patch.Hunks) == 0 {
+		t.Error("expected hunks in rename patch")
+	}
+}
+
+func TestDeleteDiff(t *testing.T) {
+	dir, err := os.MkdirTemp("", "review-diff-delete-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "T")
+	os.WriteFile(dir+"/todelete.txt", []byte("line1\nline2\nline3\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "init")
+	git("branch", "feature")
+
+	git("checkout", "feature")
+	git("rm", "todelete.txt")
+	git("commit", "-m", "delete-file")
+
+	git("checkout", "main")
+
+	runner := gitrunner.New(dir)
+	ctx := context.Background()
+
+	changes, err := changelist.ListChanges(ctx, runner, "main", "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var deleteFound bool
+	for _, c := range changes {
+		if c.Status == "D" && c.NewPath == "todelete.txt" {
+			deleteFound = true
+		}
+	}
+	if !deleteFound {
+		t.Fatal("expected deleted file in changes")
+	}
+
+	// Load patch for deleted file should not crash
+	patch, err := patchloader.LoadPatch(ctx, runner, "main", "feature", "todelete.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(patch.Hunks) == 0 {
+		t.Error("expected hunks in delete patch")
+	}
+	// All lines should be removed type
+	for _, h := range patch.Hunks {
+		for _, line := range h.Lines {
+			if line.Type != 2 {
+				t.Errorf("expected removed lines in delete patch, got type %d: %q", line.Type, line.Content)
+			}
+		}
+	}
+}
+
+func TestBinaryDiff(t *testing.T) {
+	dir, err := os.MkdirTemp("", "review-diff-binary-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "T")
+	os.WriteFile(dir+"/file.bin", []byte("hello\x00world\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "init")
+	git("branch", "feature")
+
+	git("checkout", "feature")
+	os.WriteFile(dir+"/file.bin", []byte("modified\x00content\n"), 0644)
+	git("add", ".")
+	git("commit", "-m", "modify-binary")
+
+	git("checkout", "main")
+
+	runner := gitrunner.New(dir)
+	ctx := context.Background()
+
+	changes, err := changelist.ListChanges(ctx, runner, "main", "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) == 0 {
+		t.Fatal("expected changes in binary test")
+	}
+
+	// Load patch should detect binary and not crash
+	patch, err := patchloader.LoadPatch(ctx, runner, "main", "feature", "file.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !patch.IsBinary {
+		t.Error("expected IsBinary true for binary file")
 	}
 }

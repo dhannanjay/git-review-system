@@ -6,9 +6,11 @@ import (
 )
 
 type DiffFile struct {
-	OldPath string
-	NewPath string
-	Hunks   []Hunk
+	OldPath     string
+	NewPath     string
+	Hunks       []Hunk
+	IsBinary    bool
+	IsSubmodule bool
 }
 
 type Hunk struct {

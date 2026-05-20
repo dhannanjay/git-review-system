@@ -1,6 +1,7 @@
 export namespace main {
 	
 	export class FileChangeDTO {
+	    oldPath: string;
 	    path: string;
 	    status: string;
 	
@@ -10,6 +11,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.oldPath = source["oldPath"];
 	        this.path = source["path"];
 	        this.status = source["status"];
 	    }
@@ -77,6 +79,8 @@ export namespace main {
 	    oldPath: string;
 	    newPath: string;
 	    hunks: HunkDTO[];
+	    isBinary: boolean;
+	    isSubmodule: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new PatchDTO(source);
@@ -87,6 +91,8 @@ export namespace main {
 	        this.oldPath = source["oldPath"];
 	        this.newPath = source["newPath"];
 	        this.hunks = this.convertValues(source["hunks"], HunkDTO);
+	        this.isBinary = source["isBinary"];
+	        this.isSubmodule = source["isSubmodule"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
