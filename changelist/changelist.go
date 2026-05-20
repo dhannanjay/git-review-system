@@ -34,23 +34,15 @@ func ListChanges(ctx context.Context, runner *gitrunner.Runner, base, head strin
 		if len(parts) < 2 {
 			continue
 		}
-		rawStatus := parts[0]
-		status := rawStatus
-		if len(rawStatus) > 0 && rawStatus[0] == 'R' {
+		status := parts[0]
+		if len(status) > 0 && status[0] == 'R' {
 			status = "R"
 		}
 		fc := FileChange{Status: status}
-		switch status {
-		case "R":
-			if len(parts) >= 3 {
-				fc.OldPath = parts[1]
-				fc.NewPath = parts[2]
-			} else {
-				fc.NewPath = parts[1]
-			}
-		case "D":
-			fc.NewPath = parts[1]
-		default:
+		if status == "R" && len(parts) >= 3 {
+			fc.OldPath = parts[1]
+			fc.NewPath = parts[2]
+		} else {
 			fc.NewPath = parts[1]
 		}
 		changes = append(changes, fc)
