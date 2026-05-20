@@ -54,56 +54,37 @@
     if (!patch || index < 0 || index >= patch.hunks.length) return
     currentHunkIndex = index
     const hunkEls = diffAreaEl.querySelectorAll('.hunk-container')
-    if (hunkEls && hunkEls[index]) {
+    if (hunkEls[index]) {
       hunkEls[index].scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }
 
   function handleKeydown(e) {
-    const tag = e.target.tagName.toLowerCase()
-    if (tag === 'input' || tag === 'textarea' || tag === 'select') return
+    const tagName = e.target.tagName.toLowerCase()
+    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return
 
-    const key = e.key
-
-    if (key === 'q') {
-      Quit()
-      e.preventDefault()
-      return
-    }
-
-    if (key === 'j' || key === ']') {
-      const idx = currentFileIndex()
-      if (idx < files.length - 1) {
-        selectFile(idx + 1)
-      }
-      e.preventDefault()
-      return
-    }
-
-    if (key === 'k' || key === '[') {
-      const idx = currentFileIndex()
-      if (idx > 0) {
-        selectFile(idx - 1)
-      }
-      e.preventDefault()
-      return
-    }
-
-    if (key === 'n') {
-      if (patch && currentHunkIndex < patch.hunks.length - 1) {
+    switch (e.key) {
+      case 'q':
+        Quit()
+        break
+      case 'j':
+      case ']':
+        selectFile(currentFileIndex() + 1)
+        break
+      case 'k':
+      case '[':
+        selectFile(currentFileIndex() - 1)
+        break
+      case 'n':
         focusHunk(currentHunkIndex + 1)
-      }
-      e.preventDefault()
-      return
-    }
-
-    if (key === 'p') {
-      if (patch && currentHunkIndex > 0) {
+        break
+      case 'p':
         focusHunk(currentHunkIndex - 1)
-      }
-      e.preventDefault()
-      return
+        break
+      default:
+        return
     }
+    e.preventDefault()
   }
 </script>
 
