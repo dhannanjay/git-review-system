@@ -1,13 +1,81 @@
+:root {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #2a2d2e;
+  --bg-hover: #2a2d2e;
+  --bg-active: #37373d;
+  --bg-hunk-active: #2a2d50;
+  --bg-added: #1e3a1e;
+  --bg-removed: #3a1e1e;
+  --border-color: #3c3c3c;
+  --text-primary: #d4d4d4;
+  --text-secondary: #ccc;
+  --text-muted: #888;
+  --text-header: #569cd6;
+  --text-line-num: #858585;
+  --text-added: #6a9955;
+  --text-removed: #f14c4c;
+  --text-stub: #dcdcaa;
+  --status-m-bg: #4ec9b0;
+  --status-m-text: #000;
+  --status-a-bg: #6a9955;
+  --status-a-text: #fff;
+  --status-d-bg: #f14c4c;
+  --status-d-text: #fff;
+  --status-r-bg: #dcdcaa;
+  --status-r-text: #000;
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+  --overlay-content-bg: #252526;
+  --overlay-border: #3c3c3c;
+  --key-bg: #37373d;
+  --key-border: #555;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f3f3f3;
+    --bg-tertiary: #e8e8e8;
+    --bg-hover: #e8e8e8;
+    --bg-active: #d0d0d0;
+    --bg-hunk-active: #dce3f8;
+    --bg-added: #e6ffed;
+    --bg-removed: #ffeef0;
+    --border-color: #d0d0d0;
+    --text-primary: #333333;
+    --text-secondary: #444;
+    --text-muted: #888;
+    --text-header: #0550ae;
+    --text-line-num: #6e7681;
+    --text-added: #116329;
+    --text-removed: #cf222e;
+    --text-stub: #7a6f00;
+    --status-m-bg: #4ec9b0;
+    --status-m-text: #000;
+    --status-a-bg: #6a9955;
+    --status-a-text: #fff;
+    --status-d-bg: #f14c4c;
+    --status-d-text: #fff;
+    --status-r-bg: #dcdcaa;
+    --status-r-text: #000;
+    --overlay-bg: rgba(0, 0, 0, 0.4);
+    --overlay-content-bg: #ffffff;
+    --overlay-border: #d0d0d0;
+    --key-bg: #e8e8e8;
+    --key-border: #ccc;
+  }
+}
+
 html {
-    background-color: #1e1e1e;
+  background-color: var(--bg-primary);
 }
 
 body {
-    margin: 0;
-    color: #d4d4d4;
-    font-family: "Courier New", Courier, monospace;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: "Courier New", Courier, monospace;
 }
 
 #app {
-    height: 100vh;
+  height: 100vh;
 }

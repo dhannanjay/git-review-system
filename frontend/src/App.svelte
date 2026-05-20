@@ -11,6 +11,7 @@
   let error = ''
   let currentHunkIndex = 0
   let diffAreaEl
+  let showHelp = false
 
   onMount(async () => {
     try {
@@ -64,21 +65,37 @@
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return
 
     switch (e.key) {
+      case '?':
+        showHelp = !showHelp
+        e.preventDefault()
+        return
+      case 'Escape':
+        if (showHelp) {
+          showHelp = false
+          e.preventDefault()
+          return
+        }
+        return
       case 'q':
+        if (showHelp) return
         Quit()
         break
       case 'j':
       case ']':
+        if (showHelp) return
         selectFile(currentFileIndex() + 1)
         break
       case 'k':
       case '[':
+        if (showHelp) return
         selectFile(currentFileIndex() - 1)
         break
       case 'n':
+        if (showHelp) return
         focusHunk(currentHunkIndex + 1)
         break
       case 'p':
+        if (showHelp) return
         focusHunk(currentHunkIndex - 1)
         break
       default:
@@ -165,12 +182,53 @@
   </div>
 </main>
 
+{#if showHelp}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <div class="help-overlay" on:click={() => showHelp = false}>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <div class="help-content" on:click|stopPropagation>
+      <h2>Keyboard Shortcuts</h2>
+      <table>
+        <tr>
+          <td><kbd>j</kbd> / <kbd>]</kbd></td>
+          <td>Next file</td>
+        </tr>
+        <tr>
+          <td><kbd>k</kbd> / <kbd>[</kbd></td>
+          <td>Previous file</td>
+        </tr>
+        <tr>
+          <td><kbd>n</kbd></td>
+          <td>Next hunk</td>
+        </tr>
+        <tr>
+          <td><kbd>p</kbd></td>
+          <td>Previous hunk</td>
+        </tr>
+        <tr>
+          <td><kbd>q</kbd></td>
+          <td>Quit application</td>
+        </tr>
+        <tr>
+          <td><kbd>?</kbd></td>
+          <td>Toggle this help overlay</td>
+        </tr>
+        <tr>
+          <td><kbd>Esc</kbd></td>
+          <td>Close help overlay</td>
+        </tr>
+      </table>
+      <p class="help-footer">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</p>
+    </div>
+  </div>
+{/if}
+
 <style>
   :global(body) {
     margin: 0;
     font-family: 'Courier New', Courier, monospace;
-    color: #d4d4d4;
-    background: #1e1e1e;
+    color: var(--text-primary);
+    background: var(--bg-primary);
   }
 
   :global(#app) {
@@ -187,8 +245,8 @@
   .sidebar {
     width: 240px;
     min-width: 240px;
-    background: #252526;
-    border-right: 1px solid #3c3c3c;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
     overflow-y: auto;
     padding: 8px;
   }
@@ -197,7 +255,7 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #888;
+    color: var(--text-muted);
     margin: 0 0 8px;
     padding: 0 8px;
   }
@@ -210,7 +268,7 @@
     padding: 6px 8px;
     border: none;
     background: none;
-    color: #ccc;
+    color: var(--text-secondary);
     cursor: pointer;
     font-size: 13px;
     text-align: left;
@@ -219,11 +277,11 @@
   }
 
   .file-item:hover {
-    background: #2a2d2e;
+    background: var(--bg-hover);
   }
 
   .file-item.active {
-    background: #37373d;
+    background: var(--bg-active);
   }
 
   .status {
@@ -234,10 +292,10 @@
     flex-shrink: 0;
   }
 
-  .status-m { background: #4ec9b0; color: #000; }
-  .status-a { background: #6a9955; color: #fff; }
-  .status-d { background: #f14c4c; color: #fff; }
-  .status-r { background: #dcdcaa; color: #000; }
+  .status-m { background: var(--status-m-bg); color: var(--status-m-text); }
+  .status-a { background: var(--status-a-bg); color: var(--status-a-text); }
+  .status-d { background: var(--status-d-bg); color: var(--status-d-text); }
+  .status-r { background: var(--status-r-bg); color: var(--status-r-text); }
 
   .path {
     overflow: hidden;
@@ -262,10 +320,10 @@
 
   .hunk-header {
     font-size: 12px;
-    color: #569cd6;
+    color: var(--text-header);
     padding: 4px 8px;
-    background: #1e1e1e;
-    border-bottom: 1px solid #3c3c3c;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
     font-weight: bold;
     display: flex;
     align-items: center;
@@ -273,13 +331,13 @@
   }
 
   .hunk-active .hunk-header {
-    background: #2a2d50;
-    border-color: #569cd6;
+    background: var(--bg-hunk-active);
+    border-color: var(--text-header);
   }
 
   .hunk-index {
     font-size: 10px;
-    color: #888;
+    color: var(--text-muted);
     font-weight: normal;
   }
 
@@ -300,8 +358,8 @@
 
   .diff-row.header-row {
     font-weight: bold;
-    color: #888;
-    border-bottom: 1px solid #3c3c3c;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 2px;
     margin-bottom: 2px;
   }
@@ -312,7 +370,7 @@
     min-width: 48px;
     text-align: right;
     padding: 0 8px;
-    color: #858585;
+    color: var(--text-line-num);
     user-select: none;
   }
 
@@ -323,23 +381,23 @@
   }
 
   .diff-row.added {
-    background: #1e3a1e;
+    background: var(--bg-added);
   }
 
   .diff-row.added .line-num-right {
-    color: #6a9955;
+    color: var(--text-added);
   }
 
   .diff-row.removed {
-    background: #3a1e1e;
+    background: var(--bg-removed);
   }
 
   .diff-row.removed .line-num-left {
-    color: #f14c4c;
+    color: var(--text-removed);
   }
 
   .stub-msg {
-    color: #dcdcaa;
+    color: var(--text-stub);
     font-size: 14px;
     font-weight: bold;
     text-align: center;
@@ -347,19 +405,95 @@
   }
 
   .status-msg {
-    color: #888;
+    color: var(--text-muted);
     text-align: center;
     padding: 40px;
   }
 
   .error-msg {
-    color: #f14c4c;
+    color: var(--text-removed);
     padding: 16px;
   }
 
   .empty {
-    color: #888;
+    color: var(--text-muted);
     font-size: 13px;
     padding: 8px;
+  }
+
+  .help-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .help-content {
+    background: var(--overlay-content-bg);
+    border: 1px solid var(--overlay-border);
+    border-radius: 8px;
+    padding: 24px 32px;
+    min-width: 320px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+
+  .help-content h2 {
+    margin: 0 0 16px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+  }
+
+  .help-content table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .help-content tr {
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .help-content tr:last-child {
+    border-bottom: none;
+  }
+
+  .help-content td {
+    padding: 8px 8px;
+    font-size: 13px;
+  }
+
+  .help-content td:first-child {
+    white-space: nowrap;
+    padding-right: 24px;
+    color: var(--text-primary);
+  }
+
+  .help-content td:last-child {
+    color: var(--text-muted);
+  }
+
+  kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-family: 'Courier New', Courier, monospace;
+    background: var(--key-bg);
+    border: 1px solid var(--key-border);
+    border-radius: 3px;
+    color: var(--text-primary);
+  }
+
+  .help-footer {
+    margin: 16px 0 0;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
   }
 </style>

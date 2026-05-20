@@ -104,6 +104,7 @@ Keyboard:
   k / [      previous file
   n          next hunk
   p          previous hunk
+  ?          show/hide help overlay in GUI
   q          quit
 `
 }
